@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+
 	"github.com/pocketbase/pocketbase/tools/inflector"
 )
 
@@ -151,13 +152,26 @@ func ToApiError(err error) *ApiError {
 func safeErrorsData(data any) map[string]any {
 	switch v := data.(type) {
 	case validation.Errors:
-		return resolveSafeErrorsData(v)
+		return map[string]any{
+			"validation": resolveSafeErrorsData(v),
+		}
 	case error:
 		validationErrors := validation.Errors{}
 		if errors.As(v, &validationErrors) {
-			return resolveSafeErrorsData(validationErrors)
+			return map[string]any{
+				"validation": resolveSafeErrorsData(validationErrors),
+			}
 		}
 		return map[string]any{} // not nil to ensure that is json serialized as object
+	case SafeErrorItem, SafeErrorParamsResolver, SafeErrorResolver:
+		data := resolveSafeErrorItem(v)
+		if data, ok := data.(map[string]any); ok {
+			return data
+		}
+
+		return map[string]any{
+			"error": data,
+		}
 	case map[string]validation.Error:
 		return resolveSafeErrorsData(v)
 	case map[string]SafeErrorItem:
